@@ -191,25 +191,25 @@ if st.button("Calculate Performance", type="primary"):
         if inflation_type != 'None':
             yearly_summary = pd.concat([yearly_best, yearly_avg, yearly_low, yearly_inflation, yearly_invested], axis=1)
             format_dict = {
-                'Best Balance': '£{:.2f}',
-                'Avg Balance': '£{:.2f}',
-                'Low Balance': '£{:.2f}',
+                'Best Balance': '£{:,.2f}',
+                'Avg Balance': '£{:,.2f}',
+                'Low Balance': '£{:,.2f}',
                 'Best Rate %': '{:.2f}%',
                 'Avg Rate %': '{:.2f}%',
                 'Low Rate %': '{:.2f}%',
                 f'{inflation_type} %': '{:.2f}%',
-                'Total Invested': '£{:.2f}'
+                'Total Invested': '£{:,.2f}'
             }
         else:
             yearly_summary = pd.concat([yearly_best, yearly_avg, yearly_low, yearly_invested], axis=1)
             format_dict = {
-                'Best Balance': '£{:.2f}',
-                'Avg Balance': '£{:.2f}',
-                'Low Balance': '£{:.2f}',
+                'Best Balance': '£{:,.2f}',
+                'Avg Balance': '£{:,.2f}',
+                'Low Balance': '£{:,.2f}',
                 'Best Rate %': '{:.2f}%',
                 'Avg Rate %': '{:.2f}%',
                 'Low Rate %': '{:.2f}%',
-                'Total Invested': '£{:.2f}'
+                'Total Invested': '£{:,.2f}'
             }
         
         # Center headers
