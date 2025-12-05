@@ -2,6 +2,8 @@ import pandas as pd
 from datetime import datetime, timedelta
 from rates_data import ISA_RATES
 from inflation_data import INFLATION_RATES
+from decimal import Decimal
+
 
 def get_rates_df():
     """Converts the rates list to a DataFrame and parses dates."""
@@ -14,13 +16,17 @@ def get_inflation_df():
     """Converts inflation rates to DataFrame."""
     return pd.DataFrame(INFLATION_RATES)
 
-def calculate_portfolio_growth(initial_investment, recurring_amount, frequency, lump_sums, rate_type, start_date=None, end_date=None, inflation_type='None', interest_freq='Daily'):
+def calculate_portfolio_growth(initial_investment:Decimal, recurring_amount:Decimal, frequency:str, lump_sums:list, rate_type:str, start_date=None, end_date=None, inflation_type='None', interest_freq='Daily', custom_rates_df=None):
     """
     Calculates the daily balance of the portfolio, respecting ISA allowances.
     Optionally adjusts for inflation (Real Value).
     Handles different interest payment frequencies.
     """
-    rates_df = get_rates_df()
+    if custom_rates_df is not None:
+        rates_df = custom_rates_df
+    else:
+        rates_df = get_rates_df()
+        
     inflation_df = get_inflation_df()
     
     # Define date range
@@ -38,12 +44,12 @@ def calculate_portfolio_growth(initial_investment, recurring_amount, frequency, 
     inflation_map = inflation_df.set_index('Year')[inflation_type].to_dict() if inflation_type != 'None' else {}
     
     # Initialize variables
-    balance = 0.0
-    total_invested = 0.0
-    pending_interest = 0.0
+    balance = Decimal(0.0)
+    total_invested = Decimal(0.0)
+    pending_interest = Decimal(0.0)
     
     # Inflation Index tracking
-    current_inflation_index = 1.0
+    current_inflation_index = Decimal(1.0)
     
     records = []
     
@@ -67,9 +73,9 @@ def calculate_portfolio_growth(initial_investment, recurring_amount, frequency, 
         
     # Current tax year state
     current_tax_year_idx = -1
-    current_allowance = 0
-    current_contributed = 0
-    current_rate_daily = 0.0
+    current_allowance = Decimal(0.0)
+    current_contributed = Decimal(0.0)
+    current_rate_daily = Decimal(0.0)
     current_tax_year_end = pd.Timestamp.min
     
     # Initial Investment
@@ -84,22 +90,25 @@ def calculate_portfolio_growth(initial_investment, recurring_amount, frequency, 
             mask = (rates_df['Start Date'] <= date) & (rates_df['End Date'] >= date)
             if mask.any():
                 row = rates_df[mask].iloc[0]
-                current_allowance = row['Allowance']
-                current_rate_daily = row[rate_type] / 100.0 / 365.0
+                current_allowance = Decimal(int(row['Allowance']))
+                current_rate_daily = Decimal(float(row[rate_type])) / 100 / 365
                 current_tax_year_end = row['End Date']
-                current_contributed = 0 
+                current_contributed = Decimal(0) 
                 current_tax_year_idx = 1
             else:
-                current_allowance = 0
-                current_rate_daily = 0.0
+                current_allowance = Decimal(0)
+                current_rate_daily = Decimal(0.0)
                 current_tax_year_end = date
-                current_contributed = 0
+                current_contributed = Decimal(0)
 
         # 2. Update Inflation Index
-        annual_inflation = 0.0
+        annual_inflation = Decimal(0.0)
         if inflation_type != 'None':
-            annual_inflation = inflation_map.get(year, 0.0)
-            daily_inflation_factor = (1 + annual_inflation / 100.0) ** (1/365.0)
+            # inflation_map values are likely floats from pandas, so cast to float first
+            val = inflation_map.get(year, 0.0)
+            annual_inflation = Decimal(float(val))
+            # Fix TypeError: Decimal ** float is not supported. Use Decimal for exponent.
+            daily_inflation_factor = (1 + annual_inflation / 100) ** (Decimal(1)/Decimal(365))
             current_inflation_index *= daily_inflation_factor
 
         # 3. Apply Interest (Accumulate Pending)
@@ -125,10 +134,10 @@ def calculate_portfolio_growth(initial_investment, recurring_amount, frequency, 
             
         if pay_interest:
             balance += pending_interest
-            pending_interest = 0.0
+            pending_interest = Decimal(0.0)
         
         # 4. Determine potential contribution
-        potential_contribution = 0.0
+        potential_contribution = Decimal(0.0)
         
         # Recurring
         if frequency != 'None' and date.date() == next_payment_date.date():
@@ -146,7 +155,7 @@ def calculate_portfolio_growth(initial_investment, recurring_amount, frequency, 
             
         # 5. Check Allowance and Deposit
         if potential_contribution > 0:
-            remaining_allowance = max(0, current_allowance - current_contributed)
+            remaining_allowance = max(Decimal(0.0), current_allowance - current_contributed)
             actual_deposit = min(potential_contribution, remaining_allowance)
             
             balance += actual_deposit
@@ -173,7 +182,7 @@ def calculate_portfolio_growth(initial_investment, recurring_amount, frequency, 
             'Interest Earned': balance - total_invested,
             'Rate': current_rate_daily * 365 * 100,
             'Inflation Index': current_inflation_index,
-            'Inflation Rate': annual_inflation if inflation_type != 'None' else 0.0
+            'Inflation Rate': annual_inflation if inflation_type != 'None' else Decimal(0.0)
         })
         
     return pd.DataFrame(records)
