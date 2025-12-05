@@ -27,6 +27,9 @@ def calculate_portfolio_growth(initial_investment:Decimal, recurring_amount:Deci
     else:
         rates_df = get_rates_df()
         
+    # Ensure frequency is a string to avoid TypeErrors with pd.NA or other types
+    frequency = str(frequency)
+        
     inflation_df = get_inflation_df()
     
     # Define date range
