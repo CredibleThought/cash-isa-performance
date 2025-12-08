@@ -110,6 +110,7 @@ def calculate_portfolio_growth(initial_investment:Decimal, recurring_amount:Deci
             # inflation_map values are likely floats from pandas, so cast to float first
             val = inflation_map.get(year, 0.0)
             annual_inflation = Decimal(float(val))
+            
             # Fix TypeError: Decimal ** float is not supported. Use Decimal for exponent.
             daily_inflation_factor = (1 + annual_inflation / 100) ** (Decimal(1)/Decimal(365))
             current_inflation_index *= daily_inflation_factor
@@ -143,14 +144,26 @@ def calculate_portfolio_growth(initial_investment:Decimal, recurring_amount:Deci
         potential_contribution = Decimal(0.0)
         
         # Recurring
-        if frequency != 'None' and date.date() == next_payment_date.date():
+        is_payment_day = False
+        if frequency == 'Weekly':
+             # Keep interval logic for weekly? 
+             # Or align to Monday? User didn't specify. 
+             # Let's keep existing logic -> if date == next_payment_date.date()
+             # NOTE: next_payment_date is initialized to start_date.
+             if date.date() == next_payment_date.date():
+                 is_payment_day = True
+                 next_payment_date += timedelta(weeks=1)
+        elif frequency == 'Monthly':
+            # 1st of each month
+            if date.day == 1:
+                is_payment_day = True
+        elif frequency == 'Annually':
+            # Start of Financial Year: April 6th
+            if date.month == 4 and date.day == 6:
+                is_payment_day = True
+                
+        if frequency != 'None' and is_payment_day:
             potential_contribution += recurring_amount
-            if frequency == 'Weekly':
-                next_payment_date += timedelta(weeks=1)
-            elif frequency == 'Monthly':
-                next_payment_date = pd.Timestamp(next_payment_date) + pd.DateOffset(months=1)
-            elif frequency == 'Annually':
-                next_payment_date = pd.Timestamp(next_payment_date) + pd.DateOffset(years=1)
                 
         # Lump Sums
         if date.date() in lump_sum_map:

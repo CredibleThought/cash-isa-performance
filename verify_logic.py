@@ -158,3 +158,49 @@ if __name__ == "__main__":
     test_allowance_limit()
     test_inflation()
     test_interest_frequency()
+
+def test_fixed_inflation():
+    print("\nTesting Fixed Inflation (2%)...")
+    from datetime import datetime
+    start = datetime(2020, 1, 1).date()
+    end = datetime(2022, 1, 1).date() # 2 years
+    
+    # 2020/2021 Average Rate is low (~0.x%). 
+    # Let's use 'Average Rate'
+    
+    df = calculate_portfolio_growth(
+        Decimal(100), Decimal(0), 'None', [], 'Average Rate', 
+        start_date=start, end_date=end, inflation_type='Fixed Rate', fixed_inflation_rate=Decimal(2.0)
+    )
+    res = df.iloc[-1]
+    
+    final_balance = res['Balance']
+    final_real = res['Real Balance']
+    
+    print(f"Final Balance: £{final_balance:.2f}")
+    print(f"Final Real Balance: £{final_real:.2f}")
+    
+    # Check Inflation Index
+    # 2 years of 2% inflation. Days = 366 (2020) + 365 (2021) = 731 days.
+    # Index = (1.02)^(731/365) approx
+    days = (end - start).days
+    expected_index = (1 + 0.02)**(days/365)
+    
+    actual_index = float(res['Inflation Index'])
+    print(f"Expected Index: {expected_index:.4f}, Actual: {actual_index:.4f}")
+    
+    assert abs(actual_index - expected_index) < 0.001, "Index calculation mismatch"
+    
+    # Check Real Balance
+    expected_real = float(final_balance) / expected_index
+    assert abs(float(final_real) - expected_real) < 0.01, "Real balance mismatch"
+    print("PASS")
+
+if __name__ == "__main__":
+    test_simple_interest()
+    # test_lump_sum() 
+    # test_date_range() 
+    # test_monthly_payments()
+    test_allowance_limit()
+    test_inflation()
+    test_interest_frequency()

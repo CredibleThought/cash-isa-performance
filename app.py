@@ -298,7 +298,40 @@ if st.button("Calculate Performance", type="primary"):
              yearly_custom = None
 
         # Get Inflation Rate from one of the DFs (e.g., df_best)
-        yearly_inflation = df_best.groupby('Tax Year').last()[['Inflation Rate']].rename(columns={'Inflation Rate': f'{inflation_type} %'})
+        # Instead of just taking the last value, we want the "Effective Rate" for the period.
+        # Effective Rate = (EndIndex / StartIndex) - 1
+        def calculate_effective_inflation(group):
+            if group.empty:
+                return 0.0
+            start_idx = group.iloc[0]['Inflation Index']
+            end_idx = group.iloc[-1]['Inflation Index']
+            
+            # If start_idx is 0 (shouldn't be), handle it
+            if start_idx == 0:
+                return 0.0
+                
+            # The group is daily records.
+            # However, start_idx is the index AFTER the first day's inflation? 
+            # Ideally we want index at START of period vs END of period.
+            # But the 'Inflation Index' column is the accumulated index at that day.
+            # So (End / Start) gives growth during the period EXCLUDING the very first day's previous state?
+            # Actually, `Inflation Index` starts at 1.0.
+            # If we take (Last / First), we get growth from Day 1 to Day N.
+            # But we might miss the inflation applied ON Day 1 if First is Day 1 End.
+            # But given daily compounding is tiny, (Last / First) is a decent approximation of "growth during this window".
+            
+            # To be more precise: 
+            # Growth = Index_Last / Index_Day_Before_Group
+            # But we don't have Day_Before easily.
+            # Let's use (Last / First) * (1 + daily_rate_of_first)? No too complex.
+            # Let's just use (Last / First) and normalize to annual if needed, but Tax Year is ~1 year.
+            # So (Last / First - 1) * 100 should be close to the blended rate.
+            
+            ratio = float(end_idx / start_idx)
+            return (ratio - 1) * 100
+
+        # We need to map this calculation to the Tax Year groups
+        yearly_inflation = df_best.groupby('Tax Year').apply(calculate_effective_inflation).to_frame(name=f'{inflation_type} %')
         
         # Get Total Invested for comparison
         yearly_invested = df_best.groupby('Tax Year').last()[['Total Invested']]
